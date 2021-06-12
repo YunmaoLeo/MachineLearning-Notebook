@@ -152,7 +152,6 @@ $$
          X^T\theta = X^Ty \\
          \theta = (X^TX)^{-1}X^Ty
         $$
-        
 
 #### Gradient Descent 梯度下降
 
@@ -182,7 +181,6 @@ $$
   \theta^{(next step)} = \theta - \eta\nabla MSE(\theta)
   $$
   
-
 + 如上公式中$\eta$ 是learning rate学习率
 + Python实现Batch Gradient Descent
 
@@ -264,3 +262,92 @@ for iteration in range(n_interations):
 
 + 另一种进行正则化例如梯度下降模型的方式就是只要我们的``validation error``到达了一个最小值，就停止训练，这被称作``early stopping``
 + 设置```warm_start=True``即为每一次模型都在上一次训练的基础上进行训练
+
+
+
+
+
+### Logistic Regression
+
+> 通常来说逻辑回归普遍用于预估一个实例属于某一个类别的概率，如果预测概率大于50%则归为那一类
+
+#### Estimating Probabilities
+
++ 一个逻辑回归模型会首先计算所有输入特征的权重和（加上bias term），并输出一个概率值
+  + 预估概率公式 $\hat p = h_\theta(x)=\sigma(x^T\theta)$
+  + 如上中的$\sigma$是一个S型的``sigmoid function`` 输出一个0-1之间的数字
+    + 公式如下 $\sigma(t)=\frac{1}{1+exp(-t)}=\frac{1}{1+e^{-t}}$
+
+#### Training and Cost Function
+
++ 训练的目标是为了获取参数向量 $\theta$ 让模型给结果为1的向量更高的概率，给0的向量更低的概率
+
+  + 这一训练目的由以下逻辑回归的``Cost Function``实现(针对一个单独的训练实例)
+    $$
+    c(\theta)=\left\{
+    \begin{aligned}
+    -log(\hat p)\quad if\quad y=1 \\
+    -log(1 - \hat p)\quad if\quad y=0
+    \end{aligned}
+    \right.
+    $$
+
+  + 针对整个训练集的cost function可以是所有训练集实例的平均cost，可以被写成一个单独的表达式，也被称作``log loss``
+    $$
+    J(\theta)=-\frac{1}{m}
+    \sum^m_{i=1}
+    \big[y^i log(\hat p^i)+(1-y^i)log(1-\hat p^i)
+    \big]
+    $$
+
+  + 然而，并没有一个closed-form equation闭式方程可以直接计算出能够让cost function最小的 $\theta$ 值。
+
+  + 但这个cost function是convex状的，所以可以使用梯度下降或其他最优方程来找到最小值，同样的，我们只需要寻求cost function的 $j^{th}$ 模型的参数 $\theta_j$ 偏导数即可，公式如下
+    $$
+    \frac{\partial}{\partial\theta_j}
+    J(\theta) = \frac{1}{m}
+    \sum^m_i (\sigma(\theta^T x^i)-y^i)x^i_j
+    $$
+
+#### Decision Boundaries
+
+> 正负样本的判断概率都是50%的点位就是决策边界
+>
+> 逻辑回归也可以添加正则项，Scikit-Learn默认添加了$l_2$正则项，强度控制不使用$\alpha$ 而是使用 $C$ ，和线性回归相反，C越大，正则化的力度越小
+
+
+
+#### Softmax Regression
+
++ 逻辑回归模型可以直接用于生成有多个类的模型(multiple classes)，不需要将几个二元分类器结合在一起
+
++ 这被称作``Softmax Regression, or Multinomial Logistic Regression``
+
+  + 实现方法：当给定一个实例x的时候，Softmax Regression model首先会给每一个类$k$ 计算分数$s_k(x)$ ，然后使用``softmax function(or called normalized exponential)`` 计算每一个类的概率
+
+  + 计算$s_k(x)$ 的公式和线性回归预测的公式非常相似
+    $$
+    s_k(X)=X^T\theta^k
+    $$
+
+  + 每一个类class都有一个自己的专用参数向量 $\theta^k$ ，所有的这些向量都储存在``parameter matrix``的行中
+
+  + 在我们计算完实例x属于每一个类的分数后，就可以通过使用softmax function预估概率
+
+    + 这个函数会计算每一个分数的exp，然后正则化他们（除以所有exp的总和）
+
+    + 分数通常被称作``logits`` or ``log-odds`` 
+
+    + Softmax function
+      $$
+      \hat p_k=\sigma(s(x))_k
+      =\frac{exp(s_k(x))}{\sum_{j=1}^Kexp(s_j(x))}
+      $$
+
+      + 如上等式中
+        + K是类的数量
+        + s(x) 是一个包含了示例x对于每一个类的分数
+
+  + 和逻辑回归分类器相似，Softmax Regression分来其同样也是将预估概率最高的类作为预测结果
+
+    + Softmax Regression classifier prediction
