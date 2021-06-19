@@ -17,9 +17,8 @@
     - [Multioutput Classification](#multioutput-classification)
   - [Chapter 3 Training Models](#chapter-3-training-models)
     - [Linear Regression](#linear-regression)
-# Chapter 1 机器学习概览
 
-## 机器学习类别
+# Chapter 1 机器学习概览
 
 ### 监督学习 Supervised Learning
 + K-Nearest Neighbors K近邻模型
@@ -72,7 +71,7 @@
 + ``Model-Based Learning``
   + 通过数据集的实例来生成一个模型，然后通过模型来进行预测
 
-## Chapter 2 Classification 分类
+# Chapter 2 Classification 分类
 
 + Preicision
   + Precision = TP/(TP+FP)
@@ -113,7 +112,7 @@ $$
 + 在此情景下，每个类别都可能有多种可能的值
 + 比如给一个图像做去噪处理，图像上每一个元素点的输出值都可以在0-255之间浮动，所以是多输出分类
 
-## Chapter 3 Training Models
+# Chapter 3 Training Models
 
 ### Linear Regression
 $$
@@ -261,7 +260,7 @@ for iteration in range(n_interations):
 #### Early Stopping
 
 + 另一种进行正则化例如梯度下降模型的方式就是只要我们的``validation error``到达了一个最小值，就停止训练，这被称作``early stopping``
-+ 设置```warm_start=True``即为每一次模型都在上一次训练的基础上进行训练
++ 设置``warm_start=True``即为每一次模型都在上一次训练的基础上进行训练
 
 
 
@@ -351,3 +350,116 @@ for iteration in range(n_interations):
   + 和逻辑回归分类器相似，Softmax Regression分来其同样也是将预估概率最高的类作为预测结果
 
     + Softmax Regression classifier prediction
+    
+  + 训练过程中，为了最小化Cost Function，我们需要降低交叉熵``cross entropy``, 当模型给我们的目标类预估了一个低概率的时候，交叉熵就会惩罚模型
+  
+    + 交叉熵经常被用于衡量预估类的概率集合和目标类的匹配度
+  
+    + Cross entropy cost function
+      $$
+      J(\Theta)=-\frac{1}{m}
+      \sum_{i=1}^{m}
+      \sum^K_{k=1}
+      y^{(i)}_k
+      \log(\hat{p}_k^{(i)})
+      $$
+      
+
+
+
+
+
+# Chapter 4. Support Vector Machines 支持向量机
+
++ 支持向量机是一个强大，并且多功能的模型，能够用于线性、非线性分类，回归或是异常检测。
+  + SVM尤其适用于复杂中小量样本的分类问题
+
+
+
+## Linear SVM Classification
+
++ SVM分类器会拟合在类之间最宽的可能的street（街道），这被称作``large margin classification`` 
+  + 要注意的是，在这个street外的任何训练实例都不会影响到决策边界，street只会被它的边缘实例所影响，而这些实例就被叫做``support vectors``支持向量
+  + SVM对数据集中特征的尺度(scale)相当敏感，应该在使用模型前做标准化的预处理
+
+### Soft Margin Classfication
+
++ 如果让我们严格要求所有的实例都必须要在street外的右侧，这就被称作``hard margin classification``硬边界分类。
+  + 硬边界分类存在两个主要的问题
+    + 1. 它只对线性可分的数据有效果
+      2. 它对离群值(outliers)特别敏感
++ 为了解决硬分类边界的问题，我们使用soft margin classification
+  + 我们的目标是在``让street尽可能大的情况下限制住margin violations边缘错误实例``，margin violation指的是那些出现在street内的实例，或是出现在错误方向的实例
+  + 在使用Sickit-Learn的时候，我们可以设定一个超参数C，在SVM过拟合的时候，可以降低C来正则化
+
+
+
+## Nonlinear SVM Classification
+
++ 当我们遇到一个只有一个特征x1且线性不可分的数据集的时候，我们可以给其添加一个特征x2=(x1)^2，这就可以让他变得线性可分了
+
++ 以上转化就是PolynomialFeatures，在Sklearn库中的transformer内，可以设置degree
+
+  + 在一个pipeline内，我们添加如下模型，就可以实现对线性不可分的数据集的拟合
+
+    ```python
+    Polynomial Features(degree=3),StandardScaler(),LinearSVC(C=10, loss='hinge')
+
+
+
+### Polynomial Kernel
+
++ 上面提到的方法没有办法处理一个非常复杂的数据集，并且会有一个相当高的维度和非常多的特征数量，这会让这个模型的速度变得很慢
+
++ 但是，我们在使用SVM的时候，可以尝试着去使用一个非常神奇的数学技巧叫做``kernel trick``核方法
+
+  + 核方法可以让我们不用添加高维的多项式特征就可以得到相同的结果，这可以避免特征数量爆炸式增长
+
+    ```python
+    poly_kernel_svm_clf = PipeLine([
+        ('scaler', StandardScaler()),
+        ('svm_clf', SVC(kernel='poly', degree=3, coef0=1, C=5))
+    ])
+    poly_kernel_svm_clf.fit(X,y)
+    ```
+
+  + 如上代码中，我们让SVM分类器使用了一个degree为3的多项式核，degree可以用于控制拟合程度，coef0用于控制，（相比于低维多项式），模型被高维多项式影响的程度
+
+
+
+### Similarity Features
+
++ 另一个用于解决线性不可分问题的方法，是使用``similarity function``相似函数来增加参数
+
+  + 相似函数衡量每个实例与特定``landmark地标``之间的相似程度。
+
+  + 比如，我们有一个一维数据集，有两个landmark地标 $x_1=-2, x_1=1$ 
+
+    ​	首先，我们定义这个相似函数为``Gaussian Radial Basis Function(RBF)``高斯径向基功能，同时$\gamma = 0.3$ 
+
+    + Gaussian RBF 钟形分布曲线
+      $$
+      \phi_\gamma(x,l) = \exp(-r||x-l||^2)
+      $$
+      $l$ 是landmark地标，那我们如何选择地标呢？最简单的方法是给每一个实例都创建一个地标，通过这个方法可以创建很多维度，这样就可以增大让数据集变成线性可分的概率
+
+
+
+### Gaussian RBF Kernel
+
++ RBF kernel同样可以用在SVM内，但是计算花费的时间特别多，尤其是那些数量级很大的数据，但是使用Kernel核方法就可以避免这一情况出现
+
+  ```python
+  rbf_kernel_svm_clf = Pipeline([
+      ('sclaer', StandarSclaer()),
+      ('svm_clf', SVC(kernel='rbf', gamma=5, C=0.001))
+  ])
+  rbf_kernel_svm_clf.fit(X,y)
+  ```
+
+  
+
++ 其他也有一些kernel会被运用到，有一些kernel是为一些特别的数据结构特制的，比如``String kernels``通常用于分类text documents or DNA sequences
++ 既然又怎么多类别的kernel，那具体如何进行选择呢
+  + linear kernel 是我们的首选，而且LinearSVC() 要比 SVC(kernel='linear')更快，尤其复杂数据集
+  + 如果数据集不是很大，也可以尝试使用RBF kernel以及其他的特殊kernel
