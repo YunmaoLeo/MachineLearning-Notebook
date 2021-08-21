@@ -767,3 +767,140 @@ CART: ``Classification and Regression Trees`` 是Sickit-Learn使用的生成树�
 ## PCA
 
 ``Principal Component Analysis``会首先识别最接近数据集的超平面，然后向平面上投影数据。
+
+
+
++ Preserving the variance & Principal Components 
+
++ 为找到训练集的主成分``principal components``，使用标准矩阵分解方法：``Singular Value Decomposition(SVD)``，使用此方法可以将训练集矩阵X拆解为  $U \sum V^{T}$​​​ 三个矩阵相乘
+
+  + 其中 V 包含了定义了我们寻找的主成分的单元向量
+
+  + 使用Numpy的 ``svd()``函数来获取训练集的所有主成分，然后提出前两个主成分的单元向量
+
+    ```python
+    X_centered = X - X.mean(axis=0)
+    U, s, Vt = np.linalg.svd(X_centered)
+    
+    c1 = Vt.T[:, 0]
+    c2 = Vt.T[:, 1]
+    ```
+
+  + 需要注意的是，PCA算法默认数据集是以原点为中心的， Sklearn会考虑数据集的中心，但自己实现PCA的过程中需要预处理数据分布情况。
+
+
+
+#### Projecting Down to d Dimensions
+
++ 在我们确定好主成分后，就可以通过投影的方式进行降维至d维
+
++ 使用原矩阵X 乘以 ``V矩阵的前n列``
+
+  ​	$\rm{X}_{d-proj} = \rm{X}\rm{W}_{d}$​
+
+  ```python
+  W2 = Vt.T[:, :2] #选取V矩阵的前d列
+  X2D = X_centered.dot(W2) #原矩阵点乘V矩阵的前d列
+  # X2D便是降维后我们获得的数据集
+  ```
+
++ 我们可以把降维后的数据重构回原来的维度，但这会与原来的数据集必然存在区别，这被称作``reconstruciton error``重构误差
+
++ Sklearn算法中默认使用PCA算法，计算复杂度远小于使用``SVD()``算法
+
+
+
+### Incremental PCA (IPCA)
+
++ 原有的PCA算法的缺点在于需要一个完整的数据集来让算法运行。
+
+  + ``incremental PCA自增PCA``允许将训练集拆分成小的包，然后分别给每一个包使用一次IPCA，这对于规模非常大的数据集或是线上的PCA使用有很大帮助（比如在线上有时候会有新的实例出现）
+
+    ```python
+    from sklearn.decomposition import IncrementalPCA
+    
+    n_batches = 100
+    inc_pca = IncrementalPCA(n_components=154)
+    for X_batch in np.array_split(X_train, n_batches): #np.array_split()函数拆分训练集
+        inc_pca.partial_fit(X_batch) # for循环逐一喂数据
+    X_reduced = inc_pca.transorm(X_train)
+    ```
+
+    
+
+
+
+
+
+### Kernel PCA
+
++ 在PCA中使用核方法可以在降维中 施展 复杂的非线性投射
+  + 这有助于在投影后保留数据的聚类效果，或有时候可以使用在接近``twisted manifold扭曲流形``的数据集上
+
+
+
+### LLE （Locally Linear Embedding）
+
+另一种强大的``nonlinear dimensionality reduction(NLDR)`` 非线性降维方法。
+
++ 这是一种``Manifold Learning`` 流形学习技巧，不需要依赖任何的投影
++ LLE会首先计算训练集中每一个实例和起最近邻居的关联，然后寻找一个能够最好保留``local relationships``局部关系的低维表示
+  + 这种方法使LLE针对``unrolling twisted manifolds展开瑞士卷流形`` 的效果尤其好
+
+
+
+#### How LLE works:
+
+1. 首先，针对每一个训练集实例 $\rm{x}^{(i)}$​，算法会先判断他的 $k$ 个最近邻，然后尝试去将 $\rm{x}^{(i)}$ 和他们的近邻视为线性函数去重构
+
+2. 更确切的来说，它首先会找到一个权重 $w_{i,j}$​，使得 $\rm{x}^{(i)}$ 和 $\sum^{m}_{j}w_{i,j}\rm{X}^{(j)}$​ 的平方距离``squared distance`` 尽可能最小。所以LLE的第一步是一个``constrained optimization problem`` 约束优化问题，W就是一个权重矩阵，涵盖了所有的小权重$w_{i,j}$​.
+   $$
+   \rm{W}=argmin_{(W)}\sum^{m}_{i=1}(x^{(i)}-\sum^{m}_{j=1}w_{i,j}x^{(j)})^{2}\\
+   \rm subject\ to\ \left\{w_{i,j} = 0\ if\ x^{(j)}\ is\ not\ oen\ of\ the\ k\ c.n. of;
+   \ \sum^m_{j=1}w_{i,j}=1\ for\ i=1,2,···,m\right\}
+   $$
+
+
+
+3. 在获得权重$\rm{W}$后，我们就可以把训练集匹配进入d维空间中，同时尽可能地保留这些数据之间的局部关系；如果$z^{i}$是$x^{(i)}$在这个d维空间中的图像，那么我们就希望 $z^{(i)}$ 和 $\sum^{m}_{j=1}w_{i,j}\rm{Z}^{j}$​ 之间的平方距离(squared distance)尽可能最小。
+   + 这与前一步非常相似，但前一步是在让实例保持固定，寻找最优化的权重，现在是尝试着做最大的保留：权重固定，但是找到每个实例在低维空间的最优位置
+
+
+
+
+
+### Other Dimensionality Reduction Techniques
+
++ Random Projections
+  + 使用``random linear projection`` 随机先行投影来把数据投影到更低维度。听起来比较疯狂，但实际上随即投影的效果对于保留距离非常好。降维的质量取决于实例的数量和目标维度。``sklearn.random_projection``
++ Multidimensional Scaling(MDS) 
+  + 在降维的同时视图保留实例之间的距离
++ Isomap
+  + 创建一个连接每个实例和他的近邻之间的图，然后在降维的同时尝试去保留实例之间的 ``geodesic distances`` 
+
++ t-Distributed Stochastic Neighbor Embedding (t-SNE)
+  + 在降维的同时试图让相似的实例保持接近，让不同的实例保持分开，这主要用于可视化，尤其是高维数据集的聚类
++ Linear Dscriminant Analysis(LDA线性判别分析)
+  + 是一个分类随附按，但是在训练的过程中，他学习到了类之间最有效的判别轴 ``discriminative axes`` ，并且这些轴(axes) 可以用于定义一个用于投射数据的超平面hyperplane
+  + 使用这个方法的好处是：它的投影可以让类之间的距离尽可能的远，所以LDA是一个在使用其他分类算法（比如SVM）之前降维的好技巧。![image-20210821200923762](C:\Users\zleoliu\AppData\Roaming\Typora\typora-user-images\image-20210821200923762.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
