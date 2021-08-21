@@ -363,7 +363,6 @@ for iteration in range(n_interations):
       y^{(i)}_k
       \log(\hat{p}_k^{(i)})
       $$
-      
 
 
 
@@ -463,3 +462,308 @@ for iteration in range(n_interations):
 + 既然又怎么多类别的kernel，那具体如何进行选择呢
   + linear kernel 是我们的首选，而且LinearSVC() 要比 SVC(kernel='linear')更快，尤其复杂数据集
   + 如果数据集不是很大，也可以尝试使用RBF kernel以及其他的特殊kernel
+
+
+
+### 
+
+## SVM Regression
+
++ 想要让SVM来实现回归的任务，我们只需要让目标反过来
+  + 让尽可能多的点分布在street内，同时限制边缘的异常值margin violations
+  + street 的宽度通过超参数 $\epsilon$ 进行控制
+
+
+
+## 原理
+
+### Decision Function and Predictions
+
++ SVM分类模型要判断一个实例就是通过decision function计算对应的结果，然后和0,1进行比较
+
+  + Decision Function
+    $$
+    \hat{y}=
+    \left\{
+    \begin{aligned}
+    	0\ \ if\ w^Tx+b<0\\
+    	1\ \ if\ w^Tx+b\ge0
+    \end{aligned}
+    \right.
+    $$
+
+## Training Objective 训练目标
+
+
+
+
+
+# Decision Trees 决策树
+
+
+
+## Making Prediction
+
++ 实际上决策树不需要进行太多的数据预处理，他们不需要特征标准化或中心化
+
++ 决策树中的每一个节点的``gini``基尼系数都会衡量它的``impurity``不纯度
+
+  + 当一个节点的基尼系数等于0的时候，它是``pure``纯的
+
+  + Gini Impurity
+    $$
+    G_i = 1 - \sum_{k=1}^nP_{i,k}^2
+    $$
+     其中，$P_{i,k}$ 是第i个节点所有训练实例中类别k实例的概率
+
+    ScikitLearn使用的是 CART算法，CART算法只创建二元树，非子节点总会有两个子树（问题的答案永远是Yes/No）其他的算法比如ID3 会创建的子树大于2
+
++ White BOX verses Black BOX
+
+  + 决策树是相当直观的，他们的决策都比较容易进行解释，这样的模型被我们称作``white box model``白盒模型
+  + 相对应的，随机森林或是神经网络通常被认为是黑盒模型，他们通常有很好的表现，但是很难对他们的预测进行解释
+
+
+
+## The CART Training Algorithm
+
+CART: ``Classification and Regression Trees`` 是Sickit-Learn使用的生成树的算法
+
++ CART 算法工作的过程中会首先会使用单独的一个特征 $k$ 和一个极限值threshold $t_k$ 来把整个训练集拆分成两个子集。
+
+  + 那么，这个特征以及极限值是如果选择的呢？
+
+    + 它会首先搜索所有的配对 $(k,t_k)$ , 在所有的配对中，找到最纯的purest子集(根据他们的尺寸分配权重)
+
+    + 算法尝试最小化的Cost Function如下
+      $$
+      J(k,t_k)=
+      \frac{m_{left}}{m}G_{left}+
+      \frac{m_{right}}{m}G_{right}\\
+      $$
+       其中 $G_{left/right}$ 衡量左/右子集的不纯度，$m_{left/right}$ 是左右子集中的实例的数量，
+
+      成本函数中实际上就是针对左右子集不纯度计算了一个加权和
+
++ 当CART算法将模型成功分为两个子集之后，它会用同样的逻辑给子集继续做分割操作
+  + 直到它触及了最深的分裂限度或没有办法通过分割子集来降低不纯度了，就停止。
++ CART算法是一个``greedy algorithm`` 贪婪算法，它不一定能够实现最优的结果 ，然而如果我们需要找到最优的结果，可能会需要$O(\exp{(m)})$ 的运算时间，这让问题变得相当难以处理
+
+
+
+## Gini Impurity or Entropy
+
+基尼不纯度还是熵
+
++ 默认情况下，模型会使用基尼不纯度，但我们也可以通过更改超参数``critierion = 'entropy'``来使用熵
+
+  + 当一个数据集只包含一个类别的实例的时候，他的熵就是0
+
+  + 第i个节点的熵
+    $$
+    H_i = -\sum^{n}_{\ \ k=1\\P_{i,k}\ne0}P_{i,k}\log_2(P_i,k)
+    $$
+
++ 所以我们选用基尼不纯度还是信息熵呢？
+  + 大部分情况下，使用两者不会产生明显的区别，基尼不纯度会有更快的计算速度，会是一个比较好的默认选择。
+  + 此外，基尼不纯度倾向于将最频繁的类和分支隔离开，然而熵会倾向于创建一个更平衡的树
+
+
+
+## Regularization Hyperparameters
+
++ 像决策树这样，不对训练数据集有太多猜想的模型，通常被称作``nonparametric model``非参数模型，不是因为它没有任何参数，而是因为在训练前没有确定的参数数量，所以模型可以紧密地贴合数据。
++ 相对应的，``parametic model``参数模型，比如线性模型，有一个确定好的参数数量，所以他们的``degree of freedom``自由度是固定的，这会降低他们过拟合的风险。
++ 决策树这样的模型是非常容易过拟合的，我们需要在训练过程中限制决策树的自由度，也就是进行正则化
+  + 限制树模型的最大深度``max_depth``，``min_sample_split``, ``min_sample_leaf``, ``min_leaf_nodes``
+  + 增加min_*参数，降低max_*参数就可以实现正则化了
++ 其他的算法首先不加限制得去训练决策树，然后再进行剪枝``pruning``，减掉那些没有必要的节点。
+  + 如果一个节点得所有子类都是叶子节点，且他的纯度提升是不够统计显著的，我们就认为它是不必要的节点，应该被剪掉。统计显著测试可能会使用到 $X^2-test$ 卡方检测。 
+
+
+
+## Regression
+
++ 决策树同样可以用于进行回归任务，不过相比于预测一个类别，回归中它会预测一个值
+
++ 回归任务中使用CART算法得使用逻辑和分类是类似的，只是现在它尝试着在区分数据集的时候，最小化MSE均方差，cost function如下所示，为左子树和右子树的均方差的加权和
+
+  + CART cost function for regression
+    $$
+    J(k,t_k) = \frac{m_{left}}{m}MSE_{left}+
+    \frac{m_{right}}{m}MSE_{right}
+    $$
+
+
+
+## Instability 不稳定性
+
+决策树的一些局限性
+
++ 1. 决策树喜欢执行正交决策边界，这让他们对训练集的旋转(rotation)比较敏感，有时候会带来无意义的消耗，通常来说一个好的解决办法时使用主成分分析``Principal Component Analysis`` ，这会让我们获得一个有更好的方向``orientation``的训练集
+  2. 另一个问题是，决策树对于训练集中的一些小的变量比较敏感，随机森林可以通过加权投票限制这个不稳定情况
+
+
+
+
+
+# Ensemble Learning and Random Forests
+
+
+
+## Voting Classifiers
+
++ 假设我们现在有了一批分类器模型，把这些模型的预测聚合在一起，并且将被投票最多的那个类作为结果，这样的分类器就会被称作``hard voting classifier``硬投票分类器
++ 当不同的预测模型之间是尽可能互相独立的时候，集成学习的效果会更好。比如在学习的时候对不同的模型使用完全不同的学习模型，这会提高整体预测精度。
++ 如果所有分类器都可以预估类别的概率，那么我们称它为``soft voting``，软投票模型通常可以获得更好的表现，因为他给更确定的票一个更高的权重（比如0.99相比0.55更重要）
+
+
+
+## Bagging and Pasting
+
++ 另外一种获取一批预测模型的方法是，使用相同的算法，但是使用训练集中不同的子集进行训练
+  + 当这个采样是涵盖``replacement重置的时候（有放回采样），被称作``bagging`` ``, short for ``bootstrap aggregating``
+  + 相反，无放回采样的训练方式被称作``pasting`` 粘贴
+
+
+
+## Extremely Randomized Trees
+
++ 如果我们想要让树变得更加随机，我们可以使用随机的极限值thresholds（再加上使用随机特征）
++ 这种极度随机的树，我们称它为``Extremely Randomized Trees (Extra-Trees)``
+  + 这种技术实际上使用更多的偏差来换取方差``more bias for a lower variance``
+
+
+
+## Feature Importance
+
++ 随机森林的另一个重要品质是他们可以很容易衡量每个特征的相对重要性
+  + Scikit-Learn通过观察每个子节点通过那个特征降低的不纯度的加权平均值
+  + 每个特征的重要性相加的总和为1
+
+
+
+## Boosting
+
++ 最开始称为``hypothesis boosting`` 
++ Boosting 的想法就是逐步的``sequentially``训练模型，每一次训练都尝试修正之前的模型
+
+
+
+### AdaBoost
+
++ 其中一种修正之前的模型的方法就是对那些欠拟合的数据实例提供更多的关注，这会让新的训练器越来越关注那些比较难的实例，这就是AdaBoost使用的技巧
+
++  这种序列化的学习技术，是不能平行进行的，因为每一个预测器都基于之前的训练结果 so it does not scale as well as bagging or pasting
+
++ AdaBoost的算法
+
+  + 首先，每个实例的权重 $w^{(i)}$ 都初始化设置为 $\frac{1}{m}$
+
+  + 在第一个预测器被训练之后，获得他的权重错误率 $r_1$
+
+    + $Weighted\ error\ rate\ of\ the\ j^{th}\ predictor$
+      $$
+      r_j=\frac
+      {\sum^{m}_{i=1\\\hat y_j^{(i)}\ne y^{(i)}}w^{(i)}}
+      {\sum_{i=1}^{m}w^{(i)}}
+      \\\\
+      where\ \hat y_j^{(i)}\ is\ the\ j^{th}\ predictor's\ prediction\ the\ i^{th}\ instance
+      $$
+
+  + 预测器的权重 $\alpha_j$ 通过如下公式计算
+
+    + $Predictor\ weight$
+      $$
+      \alpha_j=\mu\log\frac{1-r_j}{r_j}
+      $$
+
+  + 其中 $\mu$ 是学习率learning rate, 预测器的准确度越高，它的权重就越大，如果只是随机的猜测，那么它的权重就会使接近0的，如果整体倾向于是错的，那他就是负数
+
+  + 然后，AdaBoost模型就会通过下面的等式来更新实例的权重
+
+    + $Weight\ update\ rule$
+      $$
+      \rm{for}\ i=1,2,...,m\\
+      w^{i}\gets
+      \left\{
+      \begin{aligned}
+      	w^{(i)}\  if\ \hat{y_j}^i=y^{(i)},\\
+      	w^{(i)}exp(\alpha_j)\ if\ \hat{y_j}^i\ne y^{(i)}
+      \end{aligned}
+      \right.
+      $$
+
+
+
+### Gradient Boosting
+
++ 与AdaBoost类似，GBRT也是逐步增加预测器，并且在先前的基础上进行训练。但是，它不调整实例的权重，而是尝试着让新预测器去拟合之前的预测器的``residual errors`` 残差
+
++ 一个简单的实现
+
+  ```python
+  from sklearn.tree import DecisionTreeRegressor
+  
+  tree_reg1 = DecisionTreeRegressor(max_depth=2)
+  tree_reg1.fit(X,y)
+  
+  #现在我们训练第二个决策树，但将训练数据集设置为第一个预测器的残差residual errors
+  y2 = y - tree_reg1.predict(X)
+  tree_reg2 = DecisionTreeRegressor(max_depth=2)
+  tree_reg2.fit(X,y2)
+  
+  #现在我们训练第三棵树，训练数据集设置为第二个预测器的残差
+  y3 = y2 - tree_reg2.predict(X)
+  tree_reg3 = DecisionTreeRegressor(max_depth=2)
+  tree.reg3.fit(X,y3)
+  
+  #现在我们有个三棵树，我们可以将它们简单的聚合在一起
+  y_pred = sum(tree.predict(X_new) for tree in (tree_reg1, tree_reg2, tree_reg2))
+  ```
+
+
+
+## Stacking
+
++ ``Stacked generalization`` 相比于使用琐碎的函数来聚合预测结果，我们也可以选择训练一个模型来执行这个聚合
+
++ 我们将三个训练好的模型聚合为最终的一个模型，我们称它为``blender``搅拌机或是``meta learner``
++ 一个通用的训练融合器的方法是使用一个``hold-out set``保留集
+
+
+
+
+
+# Chapter 7 Dimensionality Reduction 降维
+
++ 1. 提高训练速度
+  2. 对于数据可视化非常有帮助
+
+
+
+## 降维的主要途径
+
+1. projection 投影
+2. Manifold Learning 流形学习
+
+
+
+### 投影
+
++ 在现实生活中的问题，训练集通常不是均匀地分布在所有维度的，有些特征一直是常数，而另一些特征是相关连的，所以实际上所有的数据集实例都在一个更低维度的子空间
+
+
+
+### 流形学习
+
+瑞士卷是一个典型的2D ``manifold流形``
+
++ 一个2D流形是一个在高维空间被弯曲和扭曲的形状。
++ 很多降维算法都通过训练数据集所在的流形进行建模，这就被称作``Manifold Learning``。这依托于``manifold assumption``流形假设，也被称作``manifold hypothesis``
+
+
+
+## PCA
+
+``Principal Component Analysis``会首先识别最接近数据集的超平面，然后向平面上投影数据。
