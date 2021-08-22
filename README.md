@@ -890,6 +890,181 @@ CART: ``Classification and Regression Trees`` 是Sickit-Learn使用的生成树�
 
 
 
+# Chapter 9. Unsupervised Learning Techniques
+
+
+
+## Clustering
+
+### K-Means
+
++ 在Kmeans的计算过程中，如果随机的初始化步骤效果不好，可能会导致收敛出局部最优解，对应的解决方法如下
+
++ Centroid initialization methods
+
+  + 通过提高``centroid initialization质心初始化``的效果来降低风险
+
+    ```python
+    goo_init = np.array([[-3,-3],[-3,-2].[-3.-1],[-1,2],[0,1]])
+    kmeans = KMeans(n_clusters=5, init=good_init, n_init=1)
+    ```
+
++ 另一个解决办法是使用不同的随机参数运行算法多次然后保持一个最优的结果。
+
+  + 可以使用超参数n_init来控制，默认等于10；模型会首先运行十次，然后呈现最优解
+
++ 衡量KMeans聚类的效果：使用``model`s inertia``: mean squared distance between each instance and its closet centroid. ``所有实例距离他最近的中心的平均平方距离``
+
+
+
++ 一个KMeans的显著进步算法：**K-Means++**, proposed in a 2006 paper by David Arthur and Sergei Vassilvitskii.
+  + 他们介绍了一种更聪明的初始化步骤：试图在选择初始中心点的时候让他们互相保持远离``tends to select centroids that are distant from one another``
+  + 这让K-Means算法更不容易收敛出一个次优解 ``much less likely to converge to a suboptimal solution``
+  + K-Means++的初始化算法流程如下
+    1. 选取一个中心点centroid $c^{(1)}$​​，在数据集中随机均匀的选择``chosen uniformly at random``
+    2. 选取一个新的中心点centroid $c^{(i)}$, 随后使用一个分布概率（距离已有中心点的距离越远，概率越高），选择出后续的中心点
+    3. 重复之前的步骤知道所有的k个中心点都被选取完成
+  + KMeans会默认使用这种方法
+
+
+
+### Accelerated K-Means and mini-batch K-Means
+
++ 2003年Charles Elken的papaer中对K-Means算法带来巨大的改进
++ 通过避免一些没必要的距离计算来提升算法的运算效率
+  + 利用三角不等式来实现``triangle inequality`` （两点之间直线最短），同时持续跟踪实例和中心点之间距离的长、短边界.
+
+
+
+
+
+### Finding the optimal number of cluster寻找到最优的聚类数目
+
++ 计算各个数目k对应的inertia，寻找其中的拐点``elbow``
+
++ inertia的能力有限，如果真的要计算，还得是看轮廓系数``sihouette coefficient``的平均值：``silhouette socre``轮廓分数
++ 一个实例的轮廓系数 = $\rm(b-a)/{max}(a,b)$​ ，其中—— a 是到类内每一个实例的平均距离，b是到最近邻聚类的平均距离。
+  + 轮廓系数的值域从-1 到 1 不等；
+  + 轮廓系数接近 +1 说明这个实例在自己的蔟类的中央，并且远离其他的蔟类
+  + 轮廓系数接近 0 说明这个实例处于一个蔟的边界
+  + 轮廓系数接近 -1 说明这个实例有可能处在一个错误的边界
++ 一个更加能表示出信息的可视化方法是展示出每一个实例轮廓系数，根据他们的蔟类和各自的系数值进行排序。这被称作``silhouette diagram``
+
+
+
+
+
+### Limits of K-Means 
+
++ 当Kmeans面对变化很大的尺寸、不同密度、或者是非球面形状时，表现可能会欠佳
+
+![image-20210822155616028](C:\Users\zleoliu\AppData\Roaming\Typora\typora-user-images\image-20210822155616028.png)
+
+面对如上的椭圆蔟类``elliptical clusters``时，高斯混合模型``gaussian mixture models``可能会有更好的效果
+
+
+
+
+
+### DBSCAN
+
+Another popular clustering algorithm that illustrates a very different approach based on ``local density estimation``. 
+
++ 这种算法将聚类定义为连续的高密度区域，它的工作原理如下：
+  + 首先，针对每一个实例，算法会先计算有多少实例在他们的一段很小的距离 $\epsilon$​ 区域内。这个区域被称作实例的 $\epsilon-neighborhood$ 
+  + 如果一个实例至少有参数 ``min_samples``个实例 ，那他就会被认为是``core instance``，也就是，核心实例是分布于那些高密度区域的``dense regions`` 
+  + 所有核心实例的近邻都会被认为是属于同一个cluster。这些近邻们可能会包含其他的核心实例，因此，一长串的近邻核心实例形成了单个蔟
+  + 任何不是核心实例、且他的近邻中没有核心实例 的实例，会被认为是一个``anormaly`` 异常
++ 这种算法在此种情况下效果比较好：所有的聚类都有足够的密度，并且他们被低密度区域很好地划分开
+
+![image-20210822162307447](C:\Users\zleoliu\AppData\Roaming\Typora\typora-user-images\image-20210822162307447.png)
+
++ 针对DBSCAN调整合适的epsilon来适应不同的数据集情况
+
+
+
+
+
+### 其他的聚类算法
+
++ Agglomerative clustering
+  + 聚类的层次是由下往上逐步搭建的；在每一个迭代的过程中，agglomerative clustering将最近的一对蔟类连接在一起。它能够创建一个灵活的并且能够呈现相当多信息的聚类树``flexible and informative cluster tree`` ，并且能够捕捉不同形状的聚类。
++ BIRCH (Balanced Iterative Reducing and Clustering using Hierachies)
+  + BIRCH算法是针对数据规模特别大的数据集的，并且在获得相似结果的前提下，可以比batch K-Means更快，只要特征列的数量不要太多（小于二十）。这个算法允许他使用比较有限的内存来处理规模很大的数据集。
+
+
+
+
+
+## Gaussian Mixtures
+
+> Gaussian mixture model(GMM) 是一个概率模型``probabilistic model`` ，它假设实例都是从几个不确定参数的高斯分布的混合中生成出来的。
+
+所有从同一个cluster中的单个高斯分布生成的模型都会像是一个椭圆体``ellipsoid`` 。当我们观察一个实例的时候，没有办法知道他来自哪一个高斯分布，也不知道这个分布的具体参数都是什么。
+
+
+
++ ``Expectation-Maximization(EM)``最大期望算法，和KMeans算法有很多相似的地方：
+  + 首先会随机初始化聚类的参数，然后会重复两个步骤直到收敛
+    + 1. 首先将实例分配给蔟类（这被称为 **expectation step**
+      2. 然后更新蔟类（这被称为 **maximization step**
+
+
+
+
+
+
+
+
+
+
+
+# Deep  Learning
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
